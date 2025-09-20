@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Word-by-Word Viewer</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 2em;
+    }
+    .input-row {
+      display: flex;
+      justify-content: center;
+      gap: 1em;
+      flex-wrap: wrap;
+      margin-bottom: 1em;
+    }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    textarea {
+      width: 80%;
+      margin: 1em 0;
+      padding: 0.5em;
+      font-size: 1em;
+    }
+    #wordDisplay {
+      margin: 1em 0;
+      height: 2em;
+    }
+    #summary {
+      margin: 0.5em 0;
+      font-size: 1em;
+      color: #555;
+    }
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 0.5em;
+      flex-wrap: wrap;
+    }
+    button {
+      font-size: 1.5em;
+      padding: 0.4em 0.6em;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    #startButton {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 0.5em 1em;
+      font-size: 1em;
+      cursor: pointer;
+    }
+    #copyButton, #downloadButton {
+      margin-top: 1em;
+      font-size: 1em;
+      padding: 0.5em 1em;
+      background: #28a745;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h1 id="appTitle">Word-by-Word Viewer</h1>
+
+  <div id="inputSection">
+    <div class="input-row">
+      <div class="input-group">
+        <label for="intervalInput">Interval (seconds)</label>
+        <input type="number" id="intervalInput" value="3" min="0.1" step="0.1">
+      </div>
+      <div class="input-group">
+        <label for="fontSizeSelector">Font Size</label>
+        <select id="fontSizeSelector">
+          <option value="2em">Normal</option>
+          <option value="3em">Large</option>
+          <option value="4em" selected>Extra Large</option>
+          <option value="5em">Huge</option>
+        </select>
+      </div>
+    </div>
+    <textarea id="textInput" rows="5" placeholder="Enter your text here..."></textarea><br>
+    <button id="startButton" onclick="startDisplay()">Start</button>
+  </div>
+
+  <div id="wordDisplay"></div>
+  <div id="summary" class="hidden"></div>
+  <button id="copyButton" class="hidden" onclick="copySummary()">Copy Summary</button>
+  <button id="downloadButton" class="hidden" onclick="downloadSummary()">Download Summary</button>
+
+  <div class="controls hidden" id="controlButtons">
+    <button onclick="prevWord()">⬅️</button>
+    <button onclick="nextWord()">➡️</button>
+    <button id="pauseBtn" onclick="pauseDisplay()">⏸️</button>
+    <button id="resumeBtn" onclick="resumeDisplay()">▶️</button>
+    <button onclick="restartDisplay()">🔄</button>
+    <button onclick="stopDisplay()">⏹️</button>
+  </div>
+
+  <script>
+    let words = [];
+    let currentIndex = 0;
+    let intervalId = null;
+    let interval = 3000;
+    let lastDisplayTime = null;
+    let timingLogs = [];
+    let sessionStartTime = null;
+    let summaryText = '';
+
+    function resetIntervalTimer() {
+      clearInterval(intervalId);
+      intervalId = setInterval(() => {
+        logCurrentWord();
+        nextWord();
+      }, interval);
+      lastDisplayTime = Date.now();
+    }
+
+    function logCurrentWord() {
+      if (lastDisplayTime !== null && currentIndex >= 0 && currentIndex < words.length) {
+        const duration = (Date.now() - lastDisplayTime) / 1000;
+        const word = words[currentIndex];
+        timingLogs.push({ word, duration });
+        console.log(`Word "${word}" was displayed for ${duration.toFixed(2)} seconds`);
+      }
+    }
+
+    function startDisplay() {
+      const text = document.getElementById('textInput').value.trim();
+      interval = parseFloat(document.getElementById('intervalInput').value) * 1000;
+
+      if (!text || isNaN(interval) || interval <= 0) {
+        alert("Please enter valid text and interval.");
+        return;
+      }
+
+      words = text.split(/\s+/);
+      currentIndex = 0;
+      timingLogs = [];
+      sessionStartTime = Date.now();
+
+      document.getElementById('inputSection').classList.add('hidden');
+      document.getElementById('appTitle').classList.add('hidden');
+      document.getElementById('controlButtons').classList.remove('hidden');
+      document.getElementById('summary').classList.add('hidden');
+      document.getElementById('copyButton').classList.add('hidden');
+      document.getElementById('downloadButton').classList.add('hidden');
+
+      showWord();
+      resetIntervalTimer();
+    }
+
+    function showWord() {
+      const wordDisplay = document.getElementById('wordDisplay');
+      wordDisplay.textContent = words[currentIndex] || '';
+      const fontSize = document.getElementById('fontSizeSelector').value;
+      wordDisplay.style.fontSize = fontSize;
+      lastDisplayTime = Date.now();
+    }
+
+    function nextWord() {
+      if (currentIndex < words.length - 1) {
+        currentIndex++;
+        showWord();
+        resetIntervalTimer();
+      } else {
+        clearInterval(intervalId);
+        logCurrentWord();
+        console.log(`Last word "${words[currentIndex]}" was displayed until end.`);
+      }
+    }
+
+    function prevWord() {
+      if (currentIndex > 0) {
+        logCurrentWord();
+        currentIndex--;
+        showWord();
+        resetIntervalTimer();
+      }
+    }
+
+    function pauseDisplay() {
+      clearInterval(intervalId);
+    }
+
+    function resumeDisplay() {
+      resetIntervalTimer();
+    }
+
+    function restartDisplay() {
+      if (words.length === 0) return;
+
+      logCurrentWord();
+      currentIndex = 0;
+      showWord();
+      resetIntervalTimer();
+    }
+
+    function stopDisplay() {
+      clearInterval(intervalId);
+      logCurrentWord();
+
+      const totalTime = (Date.now() - sessionStartTime) / 1000;
+      const averageTime = timingLogs.length
+        ? timingLogs.reduce((sum, log) => sum + log.duration, 0) / timingLogs.length
+        : 0;
+      const totalWords = timingLogs.length;
+
+      summaryText = `Session Summary:\nTotal Time: ${totalTime.toFixed(2)} seconds\nAverage Word Display Time: ${averageTime.toFixed(2)} seconds\nWords Shown: ${totalWords}\n\nWord Timings:\n` +
+        timingLogs.map(log => `${log.word}: ${log.duration.toFixed(2)}s`).join('\n');
+
+      document.getElementById('summary').textContent =
+        `Total Time: ${totalTime.toFixed(2)}s | Average Word Time: ${averageTime.toFixed(2)}s | Words Shown: ${totalWords}`;
+      document.getElementById('summary').classList.remove('hidden');
+      document.getElementById('copyButton').classList.remove('hidden');
+      document.getElementById('downloadButton').classList.remove('hidden');
+
+      words = [];
+      currentIndex = 0;
+      lastDisplayTime = null;
+      document.getElementById('wordDisplay').textContent = '';
+      document.getElementById('inputSection').classList.remove('hidden');
+      document.getElementById('appTitle').classList.remove('hidden');
+      document.getElementById('controlButtons').classList.add('hidden');
+    }
+
+    function copySummary() {
+      navigator.clipboard.writeText(summaryText)
+        .then(() => alert("Summary copied to clipboard!"))
+        .catch(err => alert("Failed to copy summary."));
+    }
+
+    function downloadSummary() {
+      const blob = new Blob([summaryText], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'word_timing_summary.txt';
+      link.click();
+    }
+  </script>
+
+</body>
+</html>
