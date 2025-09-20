@@ -28,8 +28,8 @@
       font-size: 1em;
     }
     #wordDisplay {
-      margin: 6em 0;
-      height: 2em;
+      margin: 1em  0;
+      height: 3em;
     }
     #summary {
       margin: 0.5em 0;
@@ -44,10 +44,15 @@
     }
     button {
       font-size: 1.5em;
-      padding: 0.4em 0.6em;
+      padding: 0.4em 0.2em;
       background: none;
       border: none;
       cursor: pointer;
+    }
+    #currentIndexDisplay {
+      padding: 0.5em 0.2em;
+      font-size: 1.5em;
+      color: #555;
     }
     #startButton {
       background: #007bff;
@@ -78,20 +83,26 @@
   <div id="inputSection">
     <div class="input-row">
       <div class="input-group">
+        <label for="autoAdvance">Auto-advance</label>
+        <input type="checkbox" id="autoAdvance" checked>
+      </div>
+      <div class="input-group">
         <label for="intervalInput">Interval (seconds)</label>
         <input type="number" id="intervalInput" value="3" min="0.1" step="0.1">
       </div>
+
       <div class="input-group">
         <label for="fontSizeSelector">Font Size</label>
         <select id="fontSizeSelector">
           <option value="2em">Normal</option>
           <option value="4em">Large</option>
-          <option value="6em" selected>Extra Large</option>
-          <option value="8em">Huge</option>
+          <option value="6em">Extra Large</option>
+          <option value="8em" selected>Huge</option>
         </select>
       </div>
     </div>
     <textarea id="textInput" rows="5" placeholder="Enter your text here..."></textarea><br>
+    <div id="wordCount" class="hidden" style="text-align: right;">Word Count: <span id="count">0</span></div>
     <button id="startButton" onclick="startDisplay()">Start</button>
   </div>
 
@@ -103,10 +114,12 @@
   <div class="controls hidden" id="controlButtons">
     <button onclick="prevWord()">⬅️</button>
     <button onclick="nextWord()">➡️</button>
+    <button onclick="hardWord()">🍕</button>
     <button id="pauseBtn" onclick="pauseDisplay()">⏸️</button>
     <button id="resumeBtn" onclick="resumeDisplay()">▶️</button>
     <button onclick="restartDisplay()">🔄</button>
     <button onclick="stopDisplay()">⏹️</button>
+    <div id="currentIndexDisplay"><span id="currentIndex">0</span></div>
   </div>
 
   <script>
@@ -116,14 +129,29 @@
     let interval = 3000;
     let lastDisplayTime = null;
     let timingLogs = [];
+    let hardWords = [];
     let sessionStartTime = null;
     let summaryText = '';
+
+    const textInput = document.getElementById('textInput');
+    const wordCountDisplay = document.getElementById('wordCount');
+    const countSpan = document.getElementById('count');
+
+    textInput.addEventListener('input', () => {
+      const wordCount = textInput.value.trim().split(/\s+/).filter(word => word.length > 0).length;
+      countSpan.textContent = wordCount;
+      wordCountDisplay.classList.remove('hidden');
+    });
+
 
     function resetIntervalTimer() {
       clearInterval(intervalId);
       intervalId = setInterval(() => {
-        logCurrentWord();
-        nextWord();
+        logCurrentWordAsHard();
+        if( document.getElementById('autoAdvance').checked )
+        {
+          nextWord();
+        }
       }, interval);
       lastDisplayTime = Date.now();
     }
@@ -135,6 +163,12 @@
         timingLogs.push({ word, duration });
         console.log(`Word "${word}" was displayed for ${duration.toFixed(2)} seconds`);
       }
+    }
+
+    function logCurrentWordAsHard() {
+      const word = words[currentIndex];
+      hardWords.push(word);
+      console.log(`Word "${word}" was hard.`);
     }
 
     function startDisplay() {
@@ -149,11 +183,24 @@
       words = text.split(/\s+/);
       currentIndex = 0;
       timingLogs = [];
+      hardWords = [];
+      
       sessionStartTime = Date.now();
 
       document.getElementById('inputSection').classList.add('hidden');
       document.getElementById('appTitle').classList.add('hidden');
+      document.getElementById('wordDisplay').classList.remove('hidden');
       document.getElementById('controlButtons').classList.remove('hidden');
+      if( autoadvance = document.getElementById('autoAdvance').checked )
+      {
+        document.getElementById('pauseBtn').classList.remove('hidden');
+        document.getElementById('resumeBtn').classList.remove('hidden');
+      }
+      else
+      {
+        document.getElementById('pauseBtn').classList.add('hidden');
+        document.getElementById('resumeBtn').classList.add('hidden');
+      }
       document.getElementById('summary').classList.add('hidden');
       document.getElementById('copyButton').classList.add('hidden');
       document.getElementById('downloadButton').classList.add('hidden');
@@ -165,13 +212,24 @@
     function showWord() {
       const wordDisplay = document.getElementById('wordDisplay');
       wordDisplay.textContent = words[currentIndex] || '';
+      document.getElementById('currentIndex').textContent = currentIndex + 1;
       const fontSize = document.getElementById('fontSizeSelector').value;
       wordDisplay.style.fontSize = fontSize;
       lastDisplayTime = Date.now();
     }
 
+    function prevWord() {
+      if (currentIndex > 0) {
+        logCurrentWord();
+        currentIndex--;
+        showWord();
+        resetIntervalTimer();
+      }
+    }
+    
     function nextWord() {
       if (currentIndex < words.length - 1) {
+        logCurrentWord();
         currentIndex++;
         showWord();
         resetIntervalTimer();
@@ -182,13 +240,9 @@
       }
     }
 
-    function prevWord() {
-      if (currentIndex > 0) {
-        logCurrentWord();
-        currentIndex--;
-        showWord();
-        resetIntervalTimer();
-      }
+    function hardWord() {
+      logCurrentWordAsHard();
+      nextWord();
     }
 
     function pauseDisplay() {
@@ -219,7 +273,9 @@
       const totalWords = timingLogs.length;
 
       summaryText = `Session Summary:\nTotal Time: ${totalTime.toFixed(2)} seconds\nAverage Word Display Time: ${averageTime.toFixed(2)} seconds\nWords Shown: ${totalWords}\n\nWord Timings:\n` +
-        timingLogs.map(log => `${log.word}: ${log.duration.toFixed(2)}s`).join('\n');
+        timingLogs.map(log => `${log.word}: ${log.duration.toFixed(2)}s`).join('\n') + 
+        `\n\nHard Words:\n` +
+        hardWords.join('\n');
 
       document.getElementById('summary').textContent =
         `Total Time: ${totalTime.toFixed(2)}s | Average Word Time: ${averageTime.toFixed(2)}s | Words Shown: ${totalWords}`;
@@ -227,12 +283,15 @@
       document.getElementById('copyButton').classList.remove('hidden');
       document.getElementById('downloadButton').classList.remove('hidden');
 
+
+      document.getElementById('inputSection').classList.remove('hidden');
+      document.getElementById('appTitle').classList.remove('hidden');
+
       words = [];
       currentIndex = 0;
       lastDisplayTime = null;
       document.getElementById('wordDisplay').textContent = '';
-      document.getElementById('inputSection').classList.remove('hidden');
-      document.getElementById('appTitle').classList.remove('hidden');
+      document.getElementById('wordDisplay').classList.add('hidden');
       document.getElementById('controlButtons').classList.add('hidden');
     }
 
