@@ -273,9 +273,6 @@
       const totalWords = timingLogs.length;
 
       summaryText = `Session Summary:\n\n` +
-        `Text read: \n` +
-        document.getElementById('textInput').value.trim() +
-        `\n\n` +
         `Total Time: ${totalTime.toFixed(2)} seconds\nAverage Word Display Time: ${averageTime.toFixed(2)} seconds\nWords Shown: ${totalWords}\n\nInput Text:\n${textInput.value.trim()}\n\nWord Timings:\n` +
         timingLogs.map(log => `${log.word}: ${log.duration.toFixed(2)}s`).join('\n') + 
         `\n\nHard Words:\n` +
